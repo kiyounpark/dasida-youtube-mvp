@@ -1226,9 +1226,10 @@ f(2) = 1
         let content = "";
 
         if (data.type === "choice") {
-          const choicesHtml = data.choices.map(c =>
-            `<div class="choice" onclick="handleChoiceClick(this, '${id}', '${c.next}', '${c.text}')">${c.text}</div>`
-          ).join("");
+          const choicesHtml = data.choices.map(c => {
+            const escapedText = c.text.replace(/'/g, "\\'");
+            return `<div class="choice" onclick="handleChoiceClick(this, '${id}', '${c.next}', '${escapedText}')">${c.text}</div>`;
+          }).join("");
           content = `
             <div class="flow-card ${data.cardType}">
               <div class="card-label">${data.label}</div>
@@ -1251,8 +1252,10 @@ f(2) = 1
           const choicesHtml = data.choices.map((c, i) => {
             const isCorrect = c.correct;
             const nextOrHint = isCorrect ? c.next : (c.hint || '');
+            const escapedNextOrHint = nextOrHint.replace(/'/g, "\\'");
+            const escapedText = c.text.replace(/'/g, "\\'");
             // Pass ID to renderNode again if needed
-            return `<div class="choice" onclick="handlePracticeClick(this, ${isCorrect}, '${nextOrHint}', '${c.text}', '${id}')">${c.text}</div>`;
+            return `<div class="choice" onclick="handlePracticeClick(this, ${isCorrect}, '${escapedNextOrHint}', '${escapedText}', '${id}')">${c.text}</div>`;
           }).join("");
 
           content = `
@@ -1369,8 +1372,8 @@ f(2) = 1
           
           let content = "";
           if (mode === "correct") {
-            const correctMethodLabel = { cps: "완전제곱식", vertex: "꼭짓점 공식", diff: "미분", unknown: "직관으로" }[userPath.method] || null;
-            const methodTagHtml = correctMethodLabel
+            const correctMethodLabel = { cps: "완전제곱식", vertex: "꼭짓점 공식", diff: "미분", unknown: "직관으로" }[userPath.method] || "나만의 방식";
+            const methodTagHtml = correctMethodLabel !== "나만의 방식" 
               ? `<div class="highlight" style="margin-bottom:12px;background:rgba(255,255,255,0.15);">
                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
                      <span class="tag" style="background:rgba(255,255,255,0.3);">풀이법: ${correctMethodLabel}</span>
@@ -1395,7 +1398,8 @@ f(2) = 1
                   완벽하게 이해했네요! 정말 잘했어요 👏
                 </p>
                 ${methodTagHtml}${mistakeHtml}
-                <button class="btn" onclick="location.reload()" style="margin-top:20px;background:white;color:#0d7a5b;">처음으로 돌아가기</button>
+                <button class="btn" onclick="shareResult('correct', '${correctMethodLabel}')" style="margin-top:20px;background:#f39c12;color:white;border:none;">💡 나의 수학 풀이 스타일 공유하기</button>
+                <button class="btn" onclick="location.reload()" style="margin-top:10px;background:white;color:#0d7a5b;">처음으로 돌아가기</button>
               </div>
             `;
           } else if (mode === "wrong") {
@@ -1420,7 +1424,8 @@ f(2) = 1
                 <div class="highlight" style="border-left:4px solid #2ecc71;background:rgba(255,255,255,0.15); margin-top:12px;">
                   <p style="font-size:15px;line-height:1.8;white-space:pre-line;color:#fff;">💡 <strong>Tip:</strong><br>${diag.tip}</p>
                 </div>
-                <button class="btn" onclick="location.reload()" style="margin-top:20px;background:white;color:#293B27;">처음으로 돌아가기</button>
+                <button class="btn" onclick="shareResult('wrong', '${methodLabel}', '${diag.type}')" style="margin-top:20px;background:#f39c12;color:white;border:none;">💡 내 진단 결과 친구한테 공유하기</button>
+                <button class="btn" onclick="location.reload()" style="margin-top:10px;background:white;color:#293B27;">처음으로 돌아가기</button>
               </div>
             `;
           }
@@ -1431,6 +1436,37 @@ f(2) = 1
              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'end' });
           }, 450);
         }, 2200);
+      }
+
+      async function shareResult(mode, methodLabel, weakType) {
+        let shareTitle = "";
+        let shareText = "";
+
+        if (mode === 'correct') {
+          shareTitle = '💡 나의 수학 풀이 스타일은?';
+          shareText = `엄청 쉬운 이차함수 문제인데, 은근히 푸는 방식은 다 다르대 👀\n나는 [${methodLabel}] 파였어!\n너는 무슨 파(?)인지 딱 맞혀주는 AI한테 분석받아봐!`;
+        } else {
+          shareTitle = '🔥 내 수학 약점 진단 결과!';
+          shareText = `과외쌤처럼 내 수학 약점을 딱 짚어줬어 소름 😅\n나의 취약점: [${methodLabel}] 풀이 중 [${weakType}]\n딱 내 약점을 짚어주는 AI 튜터, 너도 여기서 진단 받아봐!`;
+        }
+
+        const shareData = {
+          title: shareTitle,
+          text: shareText,
+          url: window.location.href
+        };
+
+        try {
+          if (navigator.share) {
+            await navigator.share(shareData);
+          } else {
+            // Fallback for browsers that don't support Web Share API
+            await navigator.clipboard.writeText(`${shareData.title}\n\n${shareData.text}\n${shareData.url}`);
+            alert('클립보드에 복사되었습니다! 친구에게 붙여넣기로 공유해보세요.');
+          }
+        } catch (err) {
+          console.error('Error sharing:', err);
+        }
       }
     </script>
 
